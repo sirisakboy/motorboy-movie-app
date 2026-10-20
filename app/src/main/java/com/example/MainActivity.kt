@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -197,6 +199,10 @@ fun WebViewScreen(
     var currentUrl by remember { mutableStateOf("https://www.zeed4k.com/") }
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
 
+    // Fix: ดึง Context ไว้ด้านบนสุดของ Composable function 
+    // เพื่อไม่ให้ละเมิดกฎ @Composable invocations can only happen from the context of a @Composable function
+    val context = androidx.compose.ui.platform.LocalContext.current as? MainActivity
+
     // State for "Continue Watching" feature
     var showHistorySheet by remember { mutableStateOf(false) }
     val watchHistoryList = remember {
@@ -206,14 +212,12 @@ fun WebViewScreen(
     // JS Injection for Continue Watching Button in Sidebar
     LaunchedEffect(webViewInstance) {
         webViewInstance?.let { webView ->
-            // Fix: ใช้ LocalContext เพื่อดึง MainActivity แทนการสร้าง Instance ใหม่
-            val context = androidx.compose.ui.platform.LocalContext.current as? MainActivity
-            
+            // ใช้ context ที่ดึงมาจากระดับบนสุด
             webView.addJavascriptInterface(
                 context?.WebAppInterface { showHistorySheet = true } ?: object : Any() {
                     @android.webkit.JavascriptInterface
                     fun openContinueWatching() {}
-                }, 
+                },
                 "AndroidApp"
             )
 
@@ -227,7 +231,7 @@ fun WebViewScreen(
                             btn.innerHTML = '🎬 ดูต่อล่าสุด';
                             btn.style.cssText = 'background: linear-gradient(45deg, #FFD700, #E63946); color: white; padding: 12px; margin: 15px; border-radius: 10px; text-align: center; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);';
                             btn.onclick = function() { AndroidApp.openContinueWatching(); };
-                            
+
                             var header = drawer.querySelector('.drawer-header');
                             if (header) { header.prepend(btn); } else { drawer.prepend(btn); }
                         }

@@ -93,10 +93,13 @@ jobs:
       - name: 📦 Build Android APK (${{ github.event.inputs.build_type || 'debug' }})
         run: |
           BUILD_CHOICE="${{ github.event.inputs.build_type }}"
+          # Use -Dorg.gradle.jvmargs to prevent Resource Exhaustion on GitHub Runners
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError'"
+          
           if [ "$BUILD_CHOICE" = "release" ]; then
-            ./gradlew assembleRelease --stacktrace --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g"
+            ./gradlew assembleRelease --stacktrace --no-configuration-cache $GRADLE_OPTS
           else
-            ./gradlew assembleDebug --stacktrace --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g"
+            ./gradlew assembleDebug --stacktrace --no-configuration-cache $GRADLE_OPTS
           fi
 
       - name: 🏷️ Collect & Rename Output APKs
