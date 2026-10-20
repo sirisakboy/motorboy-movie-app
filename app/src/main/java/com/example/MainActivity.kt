@@ -571,13 +571,38 @@ fun WebViewScreen(
 
 @Composable
 fun ErrorScreen(onRetry: () -> Unit) {
-    var currentTime by remember { mutableStateOf(SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())) }
-    var currentDate by remember { mutableStateOf(SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())) }
+    // ใช้งาน Local variables สำหรับแสดงวันที่และเวลา
+    val localeTh = java.util.Locale("th", "TH")
+    val localeEn = java.util.Locale.ENGLISH
+    
+    val dateTh = remember { SimpleDateFormat("EEEE d MMMM yyyy", localeTh).format(Date()) }
+    val dateEn = remember { SimpleDateFormat("EEE dd MMM yyyy", localeEn).format(Date()) }
+    var currentTime by remember { mutableStateOf(SimpleDateFormat("HH:mm:ss", localeEn).format(Date())) }
+
+    // Animation states for a modern look
+    val infiniteTransition = rememberInfiniteTransition(label = "error_animations")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow_alpha"
+    )
 
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-            currentDate = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())
+            currentTime = SimpleDateFormat("HH:mm:ss", localeEn).format(Date())
             kotlinx.coroutines.delay(1000)
         }
     }
@@ -587,13 +612,14 @@ fun ErrorScreen(onRetry: () -> Unit) {
             .fillMaxSize()
             .background(CinemaDarkBackground)
     ) {
+        // Cinematic background gradient
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF141A26),
+                            Color(0xFF1A1F2C),
                             CinemaDarkBackground,
                             Color(0xFF080B10)
                         )
@@ -608,69 +634,141 @@ fun ErrorScreen(onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            val clockScale = remember { Animatable(1f) }
-            LaunchedEffect(Unit) {
-                while(true) {
-                    clockScale.animateTo(1.05f, animationSpec = tween(1000))
-                    clockScale.animateTo(1f, animationSpec = tween(1000))
-                }
+            // --- New Date & Time Section ---
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = currentTime,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        fontSize = 60.sp,
+                        letterSpacing = 4.sp
+                    ),
+                    color = Color.White,
+                    modifier = Modifier.scale(pulseScale)
+                )
+                Text(
+                    text = dateTh,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp
+                    ),
+                    color = ZeedGold4K,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    text = dateEn.uppercase(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = 2.sp
+                    ),
+                    color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
 
-            Text(
-                text = currentTime,
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 64.sp,
-                    letterSpacing = 4.sp
-                ),
-                color = Color.White,
-                modifier = Modifier.scale(clockScale.value)
-            )
-            
-            Text(
-                text = currentDate,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.sp
-                ),
-                color = ZeedGold4K
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
+            // Animated "No Internet" Icon with soft glow
             Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .padding(24.dp)
+                    .size(160.dp)
+                    .drawBehind {
+                        drawCircle(
+                            color = ZeedCrimson.copy(alpha = glowAlpha),
+                            radius = size.minDimension / 2
+                        )
+                    }
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "การเชื่อมต่อขัดข้อง",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                    )
-                    Text(
-                        text = "กรุณาตรวจสอบอินเทอร์เน็ตของคุณ\nและลองใหม่อีกครั้ง",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray,
-                        modifier = Modifier.padding(top = 8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.WifiOff,
+                    contentDescription = "No Internet",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .scale(pulseScale)
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Main Error Text
+            Text(
+                text = "การเชื่อมต่อขัดข้อง",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                ),
+                color = Color.White,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Text(
+                text = "ไม่สามารถเข้าถึงเครือข่ายได้ในขณะนี้\nกรุณาตรวจสอบสัญญาณอินเทอร์เน็ตของคุณ",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+
+            // Value-Added "Tip" Section (Non-boring Ad)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, CinemaCardBorder, RoundedCornerShape(16.dp)),
+                color = CinemaSurfaceVariant.copy(alpha = 0.3f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Lightbulb,
+                            contentDescription = "Tip",
+                            tint = ZeedGold4K,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "คำแนะนำสำหรับคุณ",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = ZeedGold4K
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "คุณสามารถตั้งค่า 'ดาวน์โหลดล่วงหน้า' เพื่อเก็บภาพยนตร์ 4K ไว้ดูแบบออฟไลน์ได้ ทำให้รับชมได้ต่อเนื่องแม้ไม่มีเน็ต!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Modern Action Button
             Button(
                 onClick = onRetry,
                 modifier = Modifier
-                    .width(200.dp)
+                    .fillMaxWidth(0.7f)
                     .height(56.dp)
                     .clip(RoundedCornerShape(28.dp)),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ZeedCrimson)
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ZeedCrimson),
+                shape = RoundedCornerShape(28.dp)
             ) {
-                Text("ลองใหม่อีกครั้ง", color = Color.White, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ลองใหม่อีกครั้ง", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
