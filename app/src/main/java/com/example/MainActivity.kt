@@ -206,9 +206,14 @@ fun WebViewScreen(
     // JS Injection for Continue Watching Button in Sidebar
     LaunchedEffect(webViewInstance) {
         webViewInstance?.let { webView ->
-            // Add interface to communicate from JS to Compose
+            // Fix: ใช้ LocalContext เพื่อดึง MainActivity แทนการสร้าง Instance ใหม่
+            val context = androidx.compose.ui.platform.LocalContext.current as? MainActivity
+            
             webView.addJavascriptInterface(
-                MainActivity().WebAppInterface { showHistorySheet = true }, 
+                context?.WebAppInterface { showHistorySheet = true } ?: object : Any() {
+                    @android.webkit.JavascriptInterface
+                    fun openContinueWatching() {}
+                }, 
                 "AndroidApp"
             )
 
@@ -227,7 +232,6 @@ fun WebViewScreen(
                             if (header) { header.prepend(btn); } else { drawer.prepend(btn); }
                         }
                     }
-                    // Poll for drawer visibility or use MutationObserver
                     setInterval(injectButton, 2000);
                 })();
             """.trimIndent()
