@@ -55,14 +55,8 @@ jobs:
           gradle-version: '8.5' # ปรับให้ตรงกับโปรเจกต์ปัจจุบัน
           validate-wrappers: false
 
-      - name: 🛠️ Ensure Clean Gradle Wrapper
-        run: |
-          mkdir -p gradle/wrapper
-          if [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "📥 Downloading official gradle-wrapper.jar..."
-            curl -sL --retry 3 -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar || true
-          fi
-          chmod +x ./gradlew || true
+      - name: 🛠️ Ensure Gradle Wrapper is Executable
+        run: chmod +x gradlew
 
       - name: 🔑 Setup Android Keystore (Auto-Generate)
         run: |
