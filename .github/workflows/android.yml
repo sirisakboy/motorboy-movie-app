@@ -61,6 +61,15 @@ jobs:
       - name: 🔑 Setup Android Keystore (Auto-Generate)
         run: |
           echo "🔑 Preparing keystores..."
+          # Create dummy .env from .env.example to prevent Secrets Plugin configuration crash
+          if [ -f ".env.example" ]; then
+            cp .env.example .env
+            echo "✅ Created .env from .env.example"
+          else
+            touch .env
+            echo "⚠️ .env.example not found, created empty .env"
+          fi
+
           # สร้าง Debug Keystore อัตโนมัติเพื่อให้ Build ผ่านชัวร์ๆ
           if [ ! -f "debug.keystore" ]; then
             keytool -genkeypair -v \
@@ -97,9 +106,9 @@ jobs:
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError'"
           
           if [ "$BUILD_CHOICE" = "release" ]; then
-            ./gradlew assembleRelease --stacktrace --no-configuration-cache $GRADLE_OPTS
+            ./gradlew assembleRelease --info --no-configuration-cache $GRADLE_OPTS
           else
-            ./gradlew assembleDebug --stacktrace --no-configuration-cache $GRADLE_OPTS
+            ./gradlew assembleDebug --info --no-configuration-cache $GRADLE_OPTS
           fi
 
       - name: 🏷️ Collect & Rename Output APKs
