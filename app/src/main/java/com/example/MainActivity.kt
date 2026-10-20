@@ -64,10 +64,20 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var fullscreenContainer: FrameLayout? = null
 
+    // Interface เพื่อให้ JS ใน WebView เรียกใช้ฟังก์ชันใน App ได้
+    inner class WebAppInterface(private val onResumeRequested: () -> Unit) {
+        @android.webkit.JavascriptInterface
+        fun openContinueWatching() {
+            runOnUiThread {
+                onResumeRequested()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
+
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
 
         window.setFlags(
@@ -80,7 +90,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 WebViewScreen(
-                    onWebViewCreated = { webView = it },
+                    onWebViewCreated = { webView -> 
+                        this.webView = webView 
+                    },
                     onShowCustomView = { view, callback ->
                         showFullscreenVideo(view, callback)
                     },
@@ -195,6 +207,38 @@ fun WebViewScreen(
         )
     }
 
+    // JS Injection for Continue Watching Button in Sidebar
+    LaunchedEffect(webViewInstance) {
+        webViewInstance?.let { webView ->
+            // Add interface to communicate from JS to Compose
+            webView.addJavascriptInterface(
+                MainActivity().WebAppInterface { showHistorySheet = true }, 
+                "AndroidApp"
+            )
+
+            val jsCode = """
+                (function() {
+                    function injectButton() {
+                        var drawer = document.getElementById('cvi-nav-drawer');
+                        if (drawer && !document.getElementById('app-continue-btn')) {
+                            var btn = document.createElement('div');
+                            btn.id = 'app-continue-btn';
+                            btn.innerHTML = '🎬 ดูต่อล่าสุด';
+                            btn.style.cssText = 'background: linear-gradient(45deg, #FFD700, #E63946); color: white; padding: 12px; margin: 15px; border-radius: 10px; text-align: center; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);';
+                            btn.onclick = function() { AndroidApp.openContinueWatching(); };
+                            
+                            var header = drawer.querySelector('.drawer-header');
+                            if (header) { header.prepend(btn); } else { drawer.prepend(btn); }
+                        }
+                    }
+                    // Poll for drawer visibility or use MutationObserver
+                    setInterval(injectButton, 2000);
+                })();
+            """.trimIndent()
+            webView.evaluateJavascript(jsCode, null)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -276,54 +320,16 @@ fun WebViewScreen(
             }
         )
 
-        // Floating "Continue Watching" Quick Resume Pill (Bottom-Right Floating to avoid top sidebar/search)
+        // Floating "Continue Watching" Quick Resume Pill (Removed from here to avoid overlap, moved to Sidebar)
+        /* 
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(bottom = 80.dp, end = 16.dp)
         ) {
-            Surface(
-                onClick = { showHistorySheet = true },
-                shape = RoundedCornerShape(20.dp),
-                color = CinemaSurface.copy(alpha = 0.9f),
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = Brush.linearGradient(listOf(ZeedGold4K, ZeedCrimson))
-                ),
-                shadowElevation = 6.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(ZeedGold4K)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(ZeedGold4K)
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Continue",
-                        tint = ZeedGold4K,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "ดูต่อ (${watchHistoryList.firstOrNull()?.episode ?: "EP. 1"})",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = Color.White
-                    )
-                }
-            }
+            ...
         }
+        */
 
         // Cinematic Loading Animation Overlay
         AnimatedVisibility(

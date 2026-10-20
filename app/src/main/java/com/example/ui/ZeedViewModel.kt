@@ -36,10 +36,15 @@ data class PlayerState(
     val speed: Float = 1.0f,
     val server: String = "เซิร์ฟเวอร์ VIP 4K Ultra",
     val isFullscreen: Boolean = false,
-    val showControls: Boolean = true
+    val showControls: Boolean = true,
+    val playbackMode: PlaybackMode = PlaybackMode.NIGHT
 ) {
     val progress: Float
         get() = if (totalDurationSeconds > 0) currentPositionSeconds.toFloat() / totalDurationSeconds else 0f
+}
+
+enum class PlaybackMode {
+    DAY, NIGHT
 }
 
 class ZeedViewModel(
@@ -69,6 +74,12 @@ class ZeedViewModel(
     val isDownloading: StateFlow<Map<String, Int>> = _isDownloading.asStateFlow()
 
     private var playbackJob: Job? = null
+
+    fun togglePlaybackMode() {
+        val current = _playerState.value
+        val newMode = if (current.playbackMode == PlaybackMode.DAY) PlaybackMode.NIGHT else PlaybackMode.DAY
+        _playerState.value = current.copy(playbackMode = newMode)
+    }
 
     fun setTab(tab: AppTab) {
         _currentTab.value = tab

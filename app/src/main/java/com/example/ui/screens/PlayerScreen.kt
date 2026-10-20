@@ -160,6 +160,21 @@ fun PlayerScreen(
                     // Top Action Icons
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
+                            onClick = { viewModel.togglePlaybackMode() },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .testTag("player_mode_button")
+                        ) {
+                            Icon(
+                                imageVector = if (playerState.playbackMode == PlaybackMode.DAY) Icons.Default.WbSunny else Icons.Default.NightsStay,
+                                contentDescription = "Playback Mode",
+                                tint = if (playerState.playbackMode == PlaybackMode.DAY) Color(0xFFFFD700) else Color(0xFFB0C4DE),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
                             onClick = { showServerSheet = true },
                             modifier = Modifier
                                 .size(36.dp)
