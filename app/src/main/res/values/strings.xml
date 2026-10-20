@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Zeed4K</string>
+    <string name="tab_home">หน้าแรก</string>
+    <string name="tab_explore">หมวดหมู่</string>
+    <string name="tab_search">ค้นหา</string>
+    <string name="tab_watchlist">รายการของฉัน</string>
+    <string name="tab_profile">โปรไฟล์</string>
+</resources>

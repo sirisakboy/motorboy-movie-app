@@ -1,0 +1,8 @@
+{
+  "name": "Zeed4K",
+  "description": "Zeed4K - ดูหนังออนไลน์และซีรีส์ความคมชัดระดับ 4K Ultra HD พากย์ไทยและซับไทย",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
