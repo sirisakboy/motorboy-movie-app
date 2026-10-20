@@ -94,9 +94,9 @@ jobs:
         run: |
           BUILD_CHOICE="${{ github.event.inputs.build_type }}"
           if [ "$BUILD_CHOICE" = "release" ]; then
-            ./gradlew assembleRelease --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+            ./gradlew assembleRelease --stacktrace --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g"
           else
-            ./gradlew assembleDebug --stacktrace -Dorg.gradle.jvmargs="-Xmx4g"
+            ./gradlew assembleDebug --stacktrace --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g"
           fi
 
       - name: 🏷️ Collect & Rename Output APKs
