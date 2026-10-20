@@ -200,11 +200,7 @@ fun WebViewScreen(
     // State for "Continue Watching" feature
     var showHistorySheet by remember { mutableStateOf(false) }
     val watchHistoryList = remember {
-        mutableStateListOf(
-            WatchHistory("ธี่หยด 2: สมิงเขาขวาง", "EP. 5 (เสียงไทย 5.1)", "https://www.zeed4k.com/", 0.75f, "เมื่อวานนี้"),
-            WatchHistory("สงครามอวกาศทะลุมิติ: ไครซิส", "EP. 2 (4K HDR)", "https://www.zeed4k.com/", 0.45f, "2 วันที่แล้ว"),
-            WatchHistory("เดดพูล & วูล์ฟเวอรีน 4K", "ภาพยนตร์เต็มเรื่อง", "https://www.zeed4k.com/", 0.90f, "สัปดาห์ที่แล้ว")
-        )
+        mutableStateListOf<WatchHistory>()
     }
 
     // JS Injection for Continue Watching Button in Sidebar

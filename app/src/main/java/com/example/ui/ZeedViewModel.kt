@@ -37,14 +37,14 @@ data class PlayerState(
     val server: String = "เซิร์ฟเวอร์ VIP 4K Ultra",
     val isFullscreen: Boolean = false,
     val showControls: Boolean = true,
-    val playbackMode: PlaybackMode = PlaybackMode.NIGHT
+    val playbackMode: PlaybackMode = PlaybackMode.AUTO
 ) {
     val progress: Float
         get() = if (totalDurationSeconds > 0) currentPositionSeconds.toFloat() / totalDurationSeconds else 0f
 }
 
 enum class PlaybackMode {
-    DAY, NIGHT
+    DAY, NIGHT, AUTO
 }
 
 class ZeedViewModel(
@@ -77,8 +77,17 @@ class ZeedViewModel(
 
     fun togglePlaybackMode() {
         val current = _playerState.value
-        val newMode = if (current.playbackMode == PlaybackMode.DAY) PlaybackMode.NIGHT else PlaybackMode.DAY
-        _playerState.value = current.copy(playbackMode = newMode)
+        val modes = listOf(PlaybackMode.DAY, PlaybackMode.NIGHT, PlaybackMode.AUTO)
+        val nextIndex = (modes.indexOf(current.playbackMode) + 1) % modes.size
+        _playerState.value = current.copy(playbackMode = modes[nextIndex])
+    }
+
+    // ฟังก์ชันดึงโหมดที่ต้องแสดงผลจริง (คำนวณจาก AUTO ตามเวลาเครื่อง)
+    fun getEffectivePlaybackMode(mode: PlaybackMode): PlaybackMode {
+        if (mode != PlaybackMode.AUTO) return mode
+        
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return if (hour in 6..17) PlaybackMode.DAY else PlaybackMode.NIGHT
     }
 
     fun setTab(tab: AppTab) {

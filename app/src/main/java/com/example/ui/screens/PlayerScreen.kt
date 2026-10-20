@@ -167,10 +167,19 @@ fun PlayerScreen(
                                 .background(Color.Black.copy(alpha = 0.5f))
                                 .testTag("player_mode_button")
                         ) {
+                            val effectiveMode = viewModel.getEffectivePlaybackMode(playerState.playbackMode)
                             Icon(
-                                imageVector = if (playerState.playbackMode == PlaybackMode.DAY) Icons.Default.WbSunny else Icons.Default.NightsStay,
+                                imageVector = when (effectiveMode) {
+                                    PlaybackMode.DAY -> Icons.Default.WbSunny
+                                    PlaybackMode.NIGHT -> Icons.Default.NightsStay
+                                    PlaybackMode.AUTO -> Icons.Default.Brightness7
+                                },
                                 contentDescription = "Playback Mode",
-                                tint = if (playerState.playbackMode == PlaybackMode.DAY) Color(0xFFFFD700) else Color(0xFFB0C4DE),
+                                tint = when (effectiveMode) {
+                                    PlaybackMode.DAY -> Color(0xFFFFD700)
+                                    PlaybackMode.NIGHT -> Color(0xFFB0C4DE)
+                                    PlaybackMode.AUTO -> Color.White
+                                },
                                 modifier = Modifier.size(20.dp)
                             )
                         }
