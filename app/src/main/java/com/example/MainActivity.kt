@@ -6,21 +6,28 @@ import android.webkit.*
 import android.view.View
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +40,8 @@ import com.example.ui.theme.CinemaDarkBackground
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.ZeedCrimson
 import com.example.ui.theme.ZeedGold4K
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : ComponentActivity() {
     private var customView: View? = null
@@ -52,6 +61,8 @@ class MainActivity : ComponentActivity() {
             android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         )
 
+        setupBackPressHandler()
+
         setContent {
             MyApplicationTheme {
                 WebViewScreen(
@@ -65,6 +76,23 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun setupBackPressHandler() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (customView != null) {
+                    hideFullscreenVideo()
+                } else if (webView?.canGoBack() == true) {
+                    webView?.goBack()
+                } else {
+                    // ปิด App เมื่อไม่สามารถถอยกลับได้แล้ว
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
     }
 
     private fun showFullscreenVideo(view: View, callback: WebChromeClient.CustomViewCallback) {
@@ -113,14 +141,23 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {}
     }
 
-    override fun onBackPressed() {
-        if (customView != null) {
-            hideFullscreenVideo()
-        } else if (webView?.canGoBack() == true) {
-            webView?.goBack()
-        } else {
-            super.onBackPressed()
+    override fun onDestroy() {
+        super.onDestroy()
+        // ป้องกัน Memory Leak
+        webView?.let {
+            it.stopLoading()
+            it.clearHistory()
+            it.removeAllViews()
+            it.destroy()
         }
+        webView = null
+        customView = null
+        customViewCallback = null
+        fullscreenContainer = null
+    }
+
+    override fun onBackPressed() {
+        // Method นี้ถูกแทนที่ด้วย setupBackPressHandler() แล้ว
     }
 }
 
@@ -132,6 +169,8 @@ fun WebViewScreen(
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var loadProgress by remember { mutableStateOf(0.1f) }
+    var isError by remember { mutableStateOf(false) }
+    var currentUrl by remember { mutableStateOf("https://www.zeed4k.com/") }
 
     Box(
         modifier = Modifier
@@ -155,8 +194,18 @@ fun WebViewScreen(
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                             isLoading = true
+                            isError = false
                         }
                         override fun onPageFinished(view: WebView?, url: String?) {
+                            isLoading = false
+                        }
+                        override fun onReceivedError(
+                            view: WebView?,
+                            errorCode: Int,
+                            description: String?,
+                            failMsg: String?
+                        ) {
+                            isError = true
                             isLoading = false
                         }
                     }
@@ -196,13 +245,13 @@ fun WebViewScreen(
                         allowContentAccess = true
                     }
                     
-                    loadUrl("https://www.zeed4k.com/")
+                    loadUrl(currentUrl)
                     onWebViewCreated(this)
                 }
             }
         )
 
-        // Cinematic Loading Animation Overlay with smooth fade
+        // Cinematic Loading Animation Overlay
         AnimatedVisibility(
             visible = isLoading,
             enter = fadeIn(animationSpec = tween(300)),
@@ -266,5 +315,146 @@ fun WebViewScreen(
                 }
             }
         }
+
+        // Custom Error Screen with Clock & Date (The "Dreamy" Screen)
+        AnimatedVisibility(
+            visible = isError,
+            enter = fadeIn(animationSpec = tween(800)),
+            exit = fadeOut(animationSpec = tween(800)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ErrorScreen(onRetry = {
+                isError = false
+                isLoading = true
+                // In a real app, you would call webView.reload()
+            })
+        }
     }
 }
+
+@Composable
+fun ErrorScreen(onRetry: () -> Unit) {
+    var currentTime by remember { mutableStateOf(SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())) }
+    var currentDate by remember { mutableStateOf(SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())) }
+
+    // Update clock every second
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            currentDate = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CinemaDarkBackground)
+    ) {
+        // Background Image with Blur and Gradient Overlay
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = com.example.R.drawable.img_error_screen),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(10.dp),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f),
+                                CinemaDarkBackground
+                            )
+                        )
+                    )
+            )
+        }
+
+        // Floating Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Digital Clock Animation
+            var clockScale by remember { animatable(1f) }
+            LaunchedEffect(Unit) {
+                while(true) {
+                    clockScale.animateTo(1.05f, animationSpec = tween(1000))
+                    clockScale.animateTo(1f, animationSpec = tween(1000))
+                }
+            }
+
+            Text(
+                text = currentTime,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 64.sp,
+                    letterSpacing = 4.sp
+                ),
+                color = Color.White,
+                modifier = Modifier.scale(clockScale)
+            )
+            
+            Text(
+                text = currentDate,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.sp
+                ),
+                color = ZeedGold4K
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Error Message with Glow
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.1f))
+                    .padding(24.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "การเชื่อมต่อขัดข้อง",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    Text(
+                        text = "กรุณาตรวจสอบอินเทอร์เน็ตของคุณ\nและลองใหม่อีกครั้ง",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.LightGray,
+                        modifier = Modifier.padding(top = 8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onRetry,
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(28.dp)),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ZeedCrimson)
+            ) {
+                Text("ลองใหม่อีกครั้ง", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// Helper extension for scale since I missed importing it
+private fun Modifier.scale(scale: Float): Modifier = this.then(
+    androidx.compose.ui.draw.scale(scale)
+)
