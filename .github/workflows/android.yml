@@ -102,13 +102,11 @@ jobs:
       - name: 📦 Build Android APK (${{ github.event.inputs.build_type || 'debug' }})
         run: |
           BUILD_CHOICE="${{ github.event.inputs.build_type }}"
-          # Extreme stability settings to prevent Metaspace and Heap OOM on GitHub Runners
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError'"
           
           if [ "$BUILD_CHOICE" = "release" ]; then
-            ./gradlew assembleRelease --info --no-configuration-cache $GRADLE_OPTS
+            ./gradlew assembleRelease --info --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError"
           else
-            ./gradlew assembleDebug --info --no-configuration-cache $GRADLE_OPTS
+            ./gradlew assembleDebug --info --no-configuration-cache -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError"
           fi
 
       - name: 🏷️ Collect & Rename Output APKs
