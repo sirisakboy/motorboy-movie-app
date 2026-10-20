@@ -11,23 +11,23 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,11 +37,26 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.ui.theme.CinemaDarkBackground
+import com.example.ui.theme.CinemaSurface
+import com.example.ui.theme.CinemaSurfaceVariant
+import com.example.ui.theme.CinemaCardBorder
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.ZeedCrimson
 import com.example.ui.theme.ZeedGold4K
+import com.example.ui.theme.ZeedCyanNeon
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextMuted
 import java.text.SimpleDateFormat
 import java.util.*
+
+data class WatchHistory(
+    val title: String,
+    val episode: String,
+    val url: String,
+    val progress: Float, // 0.0 to 1.0
+    val lastWatchedTime: String
+)
 
 class MainActivity : ComponentActivity() {
     private var customView: View? = null
@@ -53,7 +68,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // ปลดล็อคการหมุนหน้าจออิสระตามเซนเซอร์
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
 
         window.setFlags(
@@ -86,7 +100,6 @@ class MainActivity : ComponentActivity() {
                 } else if (webView?.canGoBack() == true) {
                     webView?.goBack()
                 } else {
-                    // ปิด App เมื่อไม่สามารถถอยกลับได้แล้ว
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                     isEnabled = true
@@ -104,7 +117,6 @@ class MainActivity : ComponentActivity() {
         customView = view
         customViewCallback = callback
 
-        // ซ่อน System Bars เมื่อเข้าสู่โหมดเต็มจอ
         val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -143,7 +155,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // ป้องกัน Memory Leak
         webView?.let {
             it.stopLoading()
             it.clearHistory()
@@ -157,10 +168,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onBackPressed() {
-        // Method นี้ถูกแทนที่ด้วย setupBackPressHandler() แล้ว
+        // Handled by onBackPressedDispatcher
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebViewScreen(
     onWebViewCreated: (WebView) -> Unit,
@@ -171,6 +183,17 @@ fun WebViewScreen(
     var loadProgress by remember { mutableStateOf(0.1f) }
     var isError by remember { mutableStateOf(false) }
     var currentUrl by remember { mutableStateOf("https://www.zeed4k.com/") }
+    var webViewInstance by remember { mutableStateOf<WebView?>(null) }
+
+    // State for "Continue Watching" feature
+    var showHistorySheet by remember { mutableStateOf(false) }
+    val watchHistoryList = remember {
+        mutableStateListOf(
+            WatchHistory("ธี่หยด 2: สมิงเขาขวาง", "EP. 5 (เสียงไทย 5.1)", "https://www.zeed4k.com/", 0.75f, "เมื่อวานนี้"),
+            WatchHistory("สงครามอวกาศทะลุมิติ: ไครซิส", "EP. 2 (4K HDR)", "https://www.zeed4k.com/", 0.45f, "2 วันที่แล้ว"),
+            WatchHistory("เดดพูล & วูล์ฟเวอรีน 4K", "ภาพยนตร์เต็มเรื่อง", "https://www.zeed4k.com/", 0.90f, "สัปดาห์ที่แล้ว")
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -195,6 +218,7 @@ fun WebViewScreen(
                         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                             isLoading = true
                             isError = false
+                            if (url != null) currentUrl = url
                         }
                         override fun onPageFinished(view: WebView?, url: String?) {
                             isLoading = false
@@ -246,10 +270,60 @@ fun WebViewScreen(
                     }
                     
                     loadUrl(currentUrl)
+                    webViewInstance = this
                     onWebViewCreated(this)
                 }
             }
         )
+
+        // Floating "Continue Watching" Quick Resume Pill (Bottom-Right Floating to avoid top sidebar/search)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Surface(
+                onClick = { showHistorySheet = true },
+                shape = RoundedCornerShape(20.dp),
+                color = CinemaSurface.copy(alpha = 0.9f),
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = Brush.linearGradient(listOf(ZeedGold4K, ZeedCrimson))
+                ),
+                shadowElevation = 6.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(ZeedGold4K)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(ZeedGold4K)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Continue",
+                        tint = ZeedGold4K,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "ดูต่อ (${watchHistoryList.firstOrNull()?.episode ?: "EP. 1"})",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.White
+                    )
+                }
+            }
+        }
 
         // Cinematic Loading Animation Overlay
         AnimatedVisibility(
@@ -316,7 +390,7 @@ fun WebViewScreen(
             }
         }
 
-        // Custom Error Screen with Clock & Date (The "Dreamy" Screen)
+        // Custom Error Screen
         AnimatedVisibility(
             visible = isError,
             enter = fadeIn(animationSpec = tween(800)),
@@ -326,8 +400,169 @@ fun WebViewScreen(
             ErrorScreen(onRetry = {
                 isError = false
                 isLoading = true
-                // In a real app, you would call webView.reload()
+                webViewInstance?.reload()
             })
+        }
+    }
+
+    // Continue Watching History Bottom Sheet
+    if (showHistorySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showHistorySheet = false },
+            containerColor = CinemaSurface,
+            sheetState = rememberModalBottomSheetState()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = ZeedGold4K
+                        )
+                        Text(
+                            text = "ประวัติการรับชม & ดูต่อ (Continue Watching)",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White
+                        )
+                    }
+                    IconButton(onClick = { showHistorySheet = false }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = TextSecondary
+                        )
+                    }
+                }
+
+                Text(
+                    text = "เรื่องและ EP ล่าสุดที่คุณรับชมค้างไว้ สามารถกดเล่นต่อได้ทันที",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.heightIn(max = 350.dp)
+                ) {
+                    items(watchHistoryList) { item ->
+                        Surface(
+                            onClick = {
+                                currentUrl = item.url
+                                webViewInstance?.loadUrl(item.url)
+                                showHistorySheet = false
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = CinemaSurfaceVariant,
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                brush = Brush.linearGradient(listOf(CinemaCardBorder, ZeedCrimson.copy(alpha = 0.5f)))
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.title,
+                                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                            color = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(ZeedCrimson)
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                            ) {
+                                                Text(
+                                                    text = item.episode,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = Color.White
+                                                )
+                                            }
+                                            Text(
+                                                text = "• ${item.lastWatchedTime}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = TextMuted
+                                            )
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(ZeedCrimson),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Resume",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+
+                                // Progress bar
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "ดูไปแล้ว ${(item.progress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = ZeedCyanNeon
+                                        )
+                                        Text(
+                                            text = "4K Ultra HD",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = ZeedGold4K
+                                        )
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = { item.progress },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(4.dp)
+                                            .clip(RoundedCornerShape(2.dp)),
+                                        color = ZeedGold4K,
+                                        trackColor = Color(0xFF1E2638)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
@@ -337,7 +572,6 @@ fun ErrorScreen(onRetry: () -> Unit) {
     var currentTime by remember { mutableStateOf(SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())) }
     var currentDate by remember { mutableStateOf(SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())) }
 
-    // Update clock every second
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -351,32 +585,20 @@ fun ErrorScreen(onRetry: () -> Unit) {
             .fillMaxSize()
             .background(CinemaDarkBackground)
     ) {
-        // Background Image with Blur and Gradient Overlay
-        Box(modifier = Modifier.fillMaxSize()) {
-            Image(
-                painter = painterResource(id = com.example.R.drawable.img_error_screen),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(10.dp),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f),
-                                CinemaDarkBackground
-                            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF141A26),
+                            CinemaDarkBackground,
+                            Color(0xFF080B10)
                         )
                     )
-            )
-        }
+                )
+        )
 
-        // Floating Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -384,8 +606,7 @@ fun ErrorScreen(onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Digital Clock Animation
-            var clockScale by remember { animatable(1f) }
+            val clockScale = remember { Animatable(1f) }
             LaunchedEffect(Unit) {
                 while(true) {
                     clockScale.animateTo(1.05f, animationSpec = tween(1000))
@@ -401,7 +622,7 @@ fun ErrorScreen(onRetry: () -> Unit) {
                     letterSpacing = 4.sp
                 ),
                 color = Color.White,
-                modifier = Modifier.scale(clockScale)
+                modifier = Modifier.scale(clockScale.value)
             )
             
             Text(
@@ -415,7 +636,6 @@ fun ErrorScreen(onRetry: () -> Unit) {
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Error Message with Glow
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
@@ -453,8 +673,3 @@ fun ErrorScreen(onRetry: () -> Unit) {
         }
     }
 }
-
-// Helper extension for scale since I missed importing it
-private fun Modifier.scale(scale: Float): Modifier = this.then(
-    androidx.compose.ui.draw.scale(scale)
-)
