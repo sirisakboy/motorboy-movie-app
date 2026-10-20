@@ -440,29 +440,36 @@ fun SectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(ZeedCrimson)
+                    .width(5.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(// RoundedCornerShape(2.dp) is fine, but let's make it sleek
+                        topStart = 2.dp, topEnd = 2.dp, bottomStart = 2.dp, bottomEnd = 2.dp
+                    ))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(ZeedCrimson, ZeedCrimsonBright)
+                        )
+                    )
             )
             if (accentEmoji != null) {
-                Text(text = accentEmoji, fontSize = 16.sp)
+                Text(text = accentEmoji, fontSize = 18.sp)
             }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
+                    fontSize = 18.sp,
+                    letterSpacing = 0.5.sp
                 ),
                 color = Color.White
             )
@@ -471,21 +478,26 @@ fun SectionHeader(
         if (onSeeAllClick != null) {
             TextButton(
                 onClick = onSeeAllClick,
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CinemaSurfaceVariant.copy(alpha = 0.5f))
             ) {
-                Text(
-                    text = "ดูทั้งหมด",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = ZeedGold4K
-                )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "See All",
-                    tint = ZeedGold4K,
-                    modifier = Modifier.size(16.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "ดูทั้งหมด",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = ZeedGold4K
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "See All",
+                        tint = ZeedGold4K,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }
