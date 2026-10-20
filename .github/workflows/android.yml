@@ -52,7 +52,7 @@ jobs:
       - name: 🐘 Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7' # เปลี่ยนเป็นเวอร์ชัน Stable เพื่อความเสถียรสูงสุด
+          gradle-version: '9.3.1' # ปรับให้ตรงตามความต้องการของ Android Gradle Plugin (AGP)
           validate-wrappers: false
 
       - name: 🛠️ Ensure Gradle Wrapper is Executable
