@@ -144,6 +144,9 @@ class MainActivity : ComponentActivity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
 
+        // ป้องกันหน้าจอดับหรือล็อคหน้าจอขณะรับชมภาพยนตร์และใช้งานแอป
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
         windowInsetsController.isAppearanceLightStatusBars = false
@@ -190,6 +193,10 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // มั่นใจว่าหน้าจอไม่ดับในโหมดเต็มจอ
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        view.keepScreenOn = true
+
         customView = view
         customViewCallback = callback
 
@@ -201,6 +208,7 @@ class MainActivity : ComponentActivity() {
         fullscreenContainer = object : FrameLayout(this) {
             init {
                 setBackgroundColor(android.graphics.Color.BLACK)
+                keepScreenOn = true
             }
         }.apply {
             addView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -264,6 +272,14 @@ fun WebViewScreen(
     // Fix: ดึง Context ไว้ด้านบนสุดของ Composable function 
     // เพื่อไม่ให้ละเมิดกฎ @Composable invocations can only happen from the context of a @Composable function
     val context = androidx.compose.ui.platform.LocalContext.current as? MainActivity
+
+    val currentView = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(Unit) {
+        currentView.keepScreenOn = true
+        onDispose {
+            currentView.keepScreenOn = false
+        }
+    }
 
     // State for "Continue Watching" feature
     var showHistorySheet by remember { mutableStateOf(false) }
@@ -514,6 +530,7 @@ fun WebViewScreen(
                     )
                     
                     setBackgroundColor(0)
+                    keepScreenOn = true
 
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
